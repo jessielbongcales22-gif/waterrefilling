@@ -22,7 +22,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
 
-  // Restore from localStorage
+  // Restore user from localStorage on page load
   useEffect(() => {
     const savedUser = localStorage.getItem("water_market_user");
     if (savedUser) setUser(JSON.parse(savedUser));
