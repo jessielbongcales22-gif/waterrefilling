@@ -31,7 +31,7 @@ export interface Order {
   barangay: string;
   address?: string;
   gcashReference?: string;
-  gcashReceipt?: string; // base64 string
+  gcashReceipt?: string;
   createdAt: string;
   date: string;
 }
@@ -115,6 +115,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshData();
   }, []);
 
+  // ====== USER CRUD ======
   const addUser = async (user: Omit<User, "id" | "createdAt">) => {
     await apiRequest("/api/users", { method: "POST", body: JSON.stringify(user) });
     await refreshData();
@@ -130,6 +131,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await refreshData();
   };
 
+  // ====== ORDER CRUD ======
   const addOrder = async (order: Omit<Order, "id" | "createdAt" | "date">) => {
     const result = await apiRequest<{ success: boolean; id: string }>("/api/orders", {
       method: "POST",
@@ -149,12 +151,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await refreshData();
   };
 
+  // ====== ACTIONS ======
   const approveOrder = async (id: string) => updateOrder(id, { status: "approved", paymentStatus: "paid" });
   const rejectOrder = async (id: string) => updateOrder(id, { status: "rejected" });
   const completeOrder = async (id: string) => updateOrder(id, { status: "completed", paymentStatus: "paid" });
   const markOutForDelivery = async (id: string) => updateOrder(id, { status: "out for delivery" });
   const markDelivered = async (id: string) => updateOrder(id, { status: "completed", paymentStatus: "paid" });
 
+  // ====== STATS ======
   const getStats = (barangayFilter?: string) => {
     const filtered = !barangayFilter || barangayFilter === "All" ? orders : orders.filter((o) => o.barangay === barangayFilter);
     const completedOrPaid = filtered.filter((o) => o.status === "completed" || o.paymentStatus === "paid");
