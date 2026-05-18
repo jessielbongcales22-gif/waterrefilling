@@ -14,9 +14,7 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 app.use(express.json());
 
-// ================================
 // Aiven MySQL connection
-// ================================
 const pool = mysql.createPool({
   host: process.env.MYSQL_HOST,
   port: Number(process.env.MYSQL_PORT) || 3306,
@@ -29,9 +27,7 @@ const pool = mysql.createPool({
   ssl: { rejectUnauthorized: false },
 });
 
-// ================================
 // Health check
-// ================================
 app.get("/api/health", async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT NOW() AS current_time");
@@ -41,9 +37,7 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
-// ================================
 // Example: Users API
-// ================================
 app.get("/api/users", async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -56,9 +50,7 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
-// ================================
 // Orders API
-// ================================
 app.get("/api/orders", async (req, res) => {
   try {
     const [orders] = await pool.query(`
@@ -92,9 +84,7 @@ app.get("/api/orders", async (req, res) => {
   }
 });
 
-// ================================
-// Update order status (Complete / Delivered / etc.)
-// ================================
+// Update order status
 app.put("/api/orders/:id", async (req, res) => {
   const { status, paymentStatus } = req.body;
   const { id } = req.params;
@@ -107,9 +97,7 @@ app.put("/api/orders/:id", async (req, res) => {
   }
 });
 
-// ================================
 // Login API
-// ================================
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -121,20 +109,14 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// ================================
 // API fallback
-// ================================
 app.use("/api", (req, res) => res.status(404).json({ success: false, message: "API route not found" }));
 
-// ================================
-// React SPA fallback (fixed catch-all)
-// ================================
+// React SPA fallback
 app.get(/^\/(?!api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
-// ================================
 // Start server
-// ================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
