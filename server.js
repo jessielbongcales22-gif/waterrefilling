@@ -8,7 +8,6 @@ import cors from "cors";
 dotenv.config();
 
 const app = express();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -27,358 +26,196 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl: { rejectUnauthorized: false } // ensures secure connection to Aiven
 });
 
 // ================================
-// TEST SERVER + DATABASE CONNECTION
+// TEST DATABASE CONNECTION
 // ================================
 app.get("/api/health", async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT NOW() AS current_time");
-
     res.json({
       success: true,
-      message: "Server is running and connected to Aiven MySQL",
+      message: "Server running and connected to Aiven MySQL",
       database: process.env.MYSQL_DATABASE,
       time: rows[0].current_time
     });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Server is running but database connection failed",
-      error: err.message
-    });
+    res.status(500).json({ success: false, message: "DB connection failed", error: err.message });
   }
 });
 
 // ================================
-// ROOMS API
+// USERS API
 // ================================
-app.get("/api/rooms", async (req, res) => {
+app.get("/api/users", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM rooms");
+    const [rows] = await pool.query(`
+      SELECT id, name, email, password, contact_number AS contact, barangay, role, DATE_FORMAT(created_at,'%Y-%m-%d') AS createdAt
+      FROM users
+      ORDER BY created_at DESC
+    `);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch rooms",
-      error: err.message
-    });
+    res.status(500).json({ success: false, message: "Failed to fetch users", error: err.message });
   }
 });
 
-app.post("/api/rooms", async (req, res) => {
-  const { name, type, status, capacity, currentCapacity } = req.body;
-
+app.post("/api/users", async (req, res) => {
+  const { name, email, password, contact, barangay, role } = req.body;
   try {
     const [result] = await pool.query(
-      "INSERT INTO rooms (name, type, status, capacity, currentCapacity) VALUES (?, ?, ?, ?, ?)",
-      [
-        name,
-        type,
-        status || "Available",
-        capacity || 0,
-        currentCapacity || 0
-      ]
+      `INSERT INTO users (name, email, password, contact_number, barangay, role)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [name, email, password, contact, barangay, role]
     );
-
-    res.status(201).json({
-      success: true,
-      message: "Room added successfully",
-      id: result.insertId
-    });
+    res.status(201).json({ success: true, id: result.insertId });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to add room",
-      error: err.message
-    });
+    res.status(500).json({ success: false, message: "Failed to add user", error: err.message });
   }
 });
 
-app.put("/api/rooms/:id", async (req, res) => {
-  const { status, currentCapacity } = req.body;
+app.put("/api/users/:id", async (req, res) => {
+  const { name, email, password, contact, barangay, role } = req.body;
   const { id } = req.params;
-
   try {
     await pool.query(
-      "UPDATE rooms SET status = ?, currentCapacity = ? WHERE id = ?",
-      [status, currentCapacity, id]
+      `UPDATE users SET name=?, email=?, password=?, contact_number=?, barangay=?, role=? WHERE id=?`,
+      [name, email, password, contact, barangay, role, id]
     );
-
-    res.json({
-      success: true,
-      message: "Room updated successfully"
-    });
+    res.json({ success: true });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to update room",
-      error: err.message
-    });
+    res.status(500).json({ success: false, message: "Failed to update user", error: err.message });
   }
 });
 
-app.delete("/api/rooms/:id", async (req, res) => {
+app.delete("/api/users/:id", async (req, res) => {
   const { id } = req.params;
-
   try {
-    await pool.query("DELETE FROM rooms WHERE id = ?", [id]);
-
-    res.json({
-      success: true,
-      message: "Room deleted successfully"
-    });
+    await pool.query("DELETE FROM users WHERE id=?", [id]);
+    res.json({ success: true });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to delete room",
-      error: err.message
-    });
+    res.status(500).json({ success: false, message: "Failed to delete user", error: err.message });
   }
 });
 
 // ================================
-// REPORTS / MAINTENANCE API
+// PRODUCTS API
 // ================================
-app.get("/api/reports", async (req, res) => {
+app.get("/api/products", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM reports ORDER BY date DESC");
+    const [rows] = await pool.query(`
+      SELECT id, name, price, stock_quantity AS stock, category, description
+      FROM products
+      ORDER BY id ASC
+    `);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch reports",
-      error: err.message
-    });
-  }
-});
-
-app.post("/api/reports", async (req, res) => {
-  const { id, tenantId, title, details, category, status, date } = req.body;
-
-  if (!title || !details || !category) {
-    return res.status(400).json({
-      success: false,
-      message: "Title, details, and category are required"
-    });
-  }
-
-  try {
-    await pool.query(
-      "INSERT INTO reports (id, tenantId, title, details, category, status, date) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [
-        id || null,
-        tenantId || null,
-        title,
-        details,
-        category,
-        status || "Pending",
-        date || new Date()
-      ]
-    );
-
-    res.status(201).json({
-      success: true,
-      message: "Report saved successfully"
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to save report",
-      error: err.message
-    });
-  }
-});
-
-app.put("/api/reports/:id", async (req, res) => {
-  const { title, details, category, status, date } = req.body;
-  const { id } = req.params;
-
-  try {
-    await pool.query(
-      "UPDATE reports SET title = ?, details = ?, category = ?, status = ?, date = ? WHERE id = ?",
-      [title, details, category, status, date, id]
-    );
-
-    res.json({
-      success: true,
-      message: "Report updated successfully"
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to update report",
-      error: err.message
-    });
-  }
-});
-
-app.delete("/api/reports/:id", async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    await pool.query("DELETE FROM reports WHERE id = ?", [id]);
-
-    res.json({
-      success: true,
-      message: "Report deleted successfully"
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to delete report",
-      error: err.message
-    });
+    res.status(500).json({ success: false, message: "Failed to fetch products", error: err.message });
   }
 });
 
 // ================================
-// ACCOUNTS / LOGIN API
+// ORDERS API
+// ================================
+app.get("/api/orders", async (req, res) => {
+  try {
+    const [orders] = await pool.query(`
+      SELECT o.id, o.user_id AS customerId, COALESCE(u.name,o.customer_name_manual,'Walk-in') AS customerName,
+             o.order_type AS type, o.total_amount AS total, o.payment_method AS payment,
+             o.payment_status AS paymentStatus, o.order_status AS status,
+             o.barangay, o.address, o.gcash_reference AS gcashReference,
+             o.gcash_receipt AS gcashReceipt, o.created_at AS createdAt,
+             DATE_FORMAT(o.created_at,'%c/%e/%Y') AS date
+      FROM orders o
+      LEFT JOIN users u ON o.user_id=u.id
+      ORDER BY o.created_at DESC
+    `);
+
+    // attach items for each order
+    const finalOrders = await Promise.all(
+      orders.map(async (order) => {
+        const [items] = await pool.query(
+          `SELECT oi.product_id AS productId, p.name, oi.price_at_time AS price, oi.quantity
+           FROM order_items oi
+           LEFT JOIN products p ON oi.product_id = p.id
+           WHERE oi.order_id=?`,
+          [order.id]
+        );
+        return { ...order, id: String(order.id), total: Number(order.total), items };
+      })
+    );
+
+    res.json(finalOrders);
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Failed to fetch orders", error: err.message });
+  }
+});
+
+app.post("/api/orders", async (req, res) => {
+  const { customerId, customerName, type, items, total, payment, paymentStatus, status, barangay, address, gcashReference, gcashReceipt } = req.body;
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [orderResult] = await connection.query(
+      `INSERT INTO orders (user_id, customer_name_manual, order_type, total_amount, payment_method, payment_status, order_status, barangay, address, gcash_reference, gcash_receipt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [customerId || null, customerId ? null : customerName, type, total, payment, paymentStatus, status, barangay, address, gcashReference, gcashReceipt]
+    );
+
+    const orderId = orderResult.insertId;
+
+    for (const item of items || []) {
+      await connection.query(
+        `INSERT INTO order_items (order_id, product_id, quantity, price_at_time) VALUES (?, ?, ?, ?)`,
+        [orderId, item.productId, item.quantity, item.price]
+      );
+      // Update stock
+      await connection.query(
+        `UPDATE products SET stock_quantity=GREATEST(stock_quantity-?,0) WHERE id=?`,
+        [item.quantity, item.productId]
+      );
+    }
+
+    await connection.commit();
+    res.status(201).json({ success: true, id: String(orderId) });
+  } catch (err) {
+    await connection.rollback();
+    res.status(500).json({ success: false, message: "Failed to save order", error: err.message });
+  } finally {
+    connection.release();
+  }
+});
+
+// ================================
+// LOGIN API
 // ================================
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
-
   try {
-    const [rows] = await pool.query(
-      "SELECT * FROM accounts WHERE username = ? AND password = ?",
-      [username, password]
-    );
-
-    if (rows.length > 0) {
-      res.json({
-        success: true,
-        message: "Login successful",
-        user: rows[0]
-      });
-    } else {
-      res.status(401).json({
-        success: false,
-        message: "Invalid credentials"
-      });
-    }
+    const [rows] = await pool.query("SELECT * FROM accounts WHERE username=? AND password=?", [username, password]);
+    if (rows.length) res.json({ success: true, user: rows[0] });
+    else res.status(401).json({ success: false, message: "Invalid credentials" });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Login failed",
-      error: err.message
-    });
+    res.status(500).json({ success: false, message: "Login failed", error: err.message });
   }
 });
 
 // ================================
-// SCHEDULES / CALENDAR API
-// ================================
-app.get("/api/schedules", async (req, res) => {
-  try {
-    const [rows] = await pool.query("SELECT * FROM schedules ORDER BY date ASC");
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch schedules",
-      error: err.message
-    });
-  }
-});
-
-app.post("/api/schedules", async (req, res) => {
-  const { title, description, date, time, status } = req.body;
-
-  try {
-    const [result] = await pool.query(
-      "INSERT INTO schedules (title, description, date, time, status) VALUES (?, ?, ?, ?, ?)",
-      [
-        title,
-        description || "",
-        date,
-        time || null,
-        status || "Pending"
-      ]
-    );
-
-    res.status(201).json({
-      success: true,
-      message: "Schedule saved successfully",
-      id: result.insertId
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to save schedule",
-      error: err.message
-    });
-  }
-});
-
-app.put("/api/schedules/:id", async (req, res) => {
-  const { title, description, date, time, status } = req.body;
-  const { id } = req.params;
-
-  try {
-    await pool.query(
-      "UPDATE schedules SET title = ?, description = ?, date = ?, time = ?, status = ? WHERE id = ?",
-      [title, description, date, time, status, id]
-    );
-
-    res.json({
-      success: true,
-      message: "Schedule updated successfully"
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to update schedule",
-      error: err.message
-    });
-  }
-});
-
-app.delete("/api/schedules/:id", async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    await pool.query("DELETE FROM schedules WHERE id = ?", [id]);
-
-    res.json({
-      success: true,
-      message: "Schedule deleted successfully"
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to delete schedule",
-      error: err.message
-    });
-  }
-});
-
-// ================================
-// SERVE REACT BUILD
+// SERVE REACT FRONTEND
 // ================================
 app.use(express.static(path.join(__dirname, "dist")));
 
 // API fallback
-app.use("/api", (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "API route not found"
-  });
-});
+app.use("/api", (req, res) => res.status(404).json({ success: false, message: "API route not found" }));
 
 // React fallback
-app.use((req, res) => {
-  res.sendFile(path.join(__dirname, "dist", "index.html"));
-});
+app.use((req, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
 
 // ================================
 // START SERVER
 // ================================
 const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
