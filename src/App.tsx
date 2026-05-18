@@ -11,7 +11,37 @@ import UsersPage from './pages/UsersPage';
 import CustomerDashboard from './pages/CustomerDashboard';
 import AuthModal from './components/AuthModal';
 import { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import LoginPage from "./pages/LoginPage";
+import Dashboard from "./pages/Dashboard";
+import PrivateRoute from "./components/PrivateRoute";
+import { AuthProvider } from "./context/AuthContext";
+import { DataProvider } from "./context/DataContext";
 
+function App() {
+  return (
+    <AuthProvider>
+      <DataProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/dashboard"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </Router>
+      </DataProvider>
+    </AuthProvider>
+  );
+}
+
+export default App;
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) => {
   const { user, isAuthenticated } = useAuth();
   
