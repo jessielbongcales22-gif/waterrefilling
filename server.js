@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 app.use(express.json());
 
-// Aiven MySQL connection
+// MySQL Aiven Connection
 const pool = mysql.createPool({
   host: process.env.MYSQL_HOST,
   port: Number(process.env.MYSQL_PORT) || 3306,
@@ -27,7 +27,7 @@ const pool = mysql.createPool({
   ssl: { rejectUnauthorized: false },
 });
 
-// Health check
+// Health Check
 app.get("/api/health", async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT NOW() AS current_time");
@@ -37,14 +37,13 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
-// Example: Users API
-app.get("/api/users", async (req, res) => {
+// Login API
+app.post("/api/login", async (req, res) => {
+  const { username, password } = req.body;
   try {
-    const [rows] = await pool.query(`
-      SELECT id, name, email, password, contact_number AS contact, barangay, role, DATE_FORMAT(created_at,'%Y-%m-%d') AS createdAt
-      FROM users ORDER BY created_at DESC
-    `);
-    res.json(rows);
+    const [rows] = await pool.query("SELECT * FROM accounts WHERE username=? AND password=?", [username, password]);
+    if (rows.length) res.json({ success: true, user: rows[0] });
+    else res.status(401).json({ success: false, message: "Invalid credentials" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -84,26 +83,13 @@ app.get("/api/orders", async (req, res) => {
   }
 });
 
-// Update order status
+// Update Order Status
 app.put("/api/orders/:id", async (req, res) => {
   const { status, paymentStatus } = req.body;
   const { id } = req.params;
-
   try {
     await pool.query("UPDATE orders SET order_status=?, payment_status=? WHERE id=?", [status, paymentStatus, id]);
     res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// Login API
-app.post("/api/login", async (req, res) => {
-  const { username, password } = req.body;
-  try {
-    const [rows] = await pool.query("SELECT * FROM accounts WHERE username=? AND password=?", [username, password]);
-    if (rows.length) res.json({ success: true, user: rows[0] });
-    else res.status(401).json({ success: false, message: "Invalid credentials" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
