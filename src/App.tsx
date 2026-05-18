@@ -1,152 +1,149 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import SidebarLayout from './layouts/SidebarLayout';
-import LandingPage from './pages/LandingPage';
-import AdminDashboard from './pages/AdminDashboard';
-import WalkInSale from './pages/WalkInSale';
-import OrdersPage from './pages/OrdersPage';
-import InventoryPage from './pages/InventoryPage';
-import ReportsPage from './pages/ReportsPage';
-import UsersPage from './pages/UsersPage';
-import CustomerDashboard from './pages/CustomerDashboard';
-import AuthModal from './components/AuthModal';
-import { useState } from 'react';
+import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import LoginPage from "./pages/LoginPage";
-import Dashboard from "./pages/Dashboard";
-import PrivateRoute from "./components/PrivateRoute";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { DataProvider } from "./context/DataContext";
 
-function App() {
-  return (
-    <AuthProvider>
-      <DataProvider>
-        <Router>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route
-              path="/dashboard"
-              element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              }
-            />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </Routes>
-        </Router>
-      </DataProvider>
-    </AuthProvider>
-  );
-}
+import SidebarLayout from "./layouts/SidebarLayout";
+import LandingPage from "./pages/LandingPage";
+import AdminDashboard from "./pages/AdminDashboard";
+import WalkInSale from "./pages/WalkInSale";
+import OrdersPage from "./pages/OrdersPage";
+import InventoryPage from "./pages/InventoryPage";
+import ReportsPage from "./pages/ReportsPage";
+import UsersPage from "./pages/UsersPage";
+import CustomerDashboard from "./pages/CustomerDashboard";
+import AuthModal from "./components/AuthModal";
+import LoginPage from "./pages/LoginPage";
 
-export default App;
-const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) => {
+// =====================
+// Protected Route Component
+// =====================
+const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({
+  children,
+  allowedRoles,
+}) => {
   const { user, isAuthenticated } = useAuth();
-  
+
   if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && user && !allowedRoles.includes(user.role || '')) {
-    return <Navigate to={user.role === 'customer' ? '/customer-dashboard' : '/dashboard'} replace />;
+  if (allowedRoles && user && !allowedRoles.includes(user.role || "")) {
+    // Redirect to correct dashboard if role mismatch
+    return <Navigate to={user.role === "customer" ? "/customer-dashboard" : "/dashboard"} replace />;
   }
 
   return <>{children}</>;
 };
 
-const AppRoutes = () => {
+// =====================
+// App Routes Component
+// =====================
+const AppRoutes: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   return (
     <>
       <Routes>
+        {/* Landing / Public */}
         <Route path="/" element={<LandingPage onOpenAuth={() => setIsAuthModalOpen(true)} />} />
-        
+        <Route path="/login" element={<LoginPage />} />
+
         {/* Customer Route */}
-        <Route 
-          path="/customer-dashboard" 
+        <Route
+          path="/customer-dashboard"
           element={
-            <ProtectedRoute allowedRoles={['customer']}>
+            <ProtectedRoute allowedRoles={["customer"]}>
               <CustomerDashboard />
             </ProtectedRoute>
-          } 
+          }
         />
 
-        {/* Admin/Staff Routes */}
-        <Route 
-          path="/dashboard" 
+        {/* Admin / Staff Routes */}
+        <Route
+          path="/dashboard"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'staff']}>
-              <SidebarLayout><AdminDashboard /></SidebarLayout>
+            <ProtectedRoute allowedRoles={["admin", "staff"]}>
+              <SidebarLayout>
+                <AdminDashboard />
+              </SidebarLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/walk-in" 
+        <Route
+          path="/walk-in"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'staff']}>
-              <SidebarLayout><WalkInSale /></SidebarLayout>
+            <ProtectedRoute allowedRoles={["admin", "staff"]}>
+              <SidebarLayout>
+                <WalkInSale />
+              </SidebarLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/orders" 
+        <Route
+          path="/orders"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'staff']}>
-              <SidebarLayout><OrdersPage /></SidebarLayout>
+            <ProtectedRoute allowedRoles={["admin", "staff"]}>
+              <SidebarLayout>
+                <OrdersPage />
+              </SidebarLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/inventory" 
+        <Route
+          path="/inventory"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'staff']}>
-              <SidebarLayout><InventoryPage /></SidebarLayout>
+            <ProtectedRoute allowedRoles={["admin", "staff"]}>
+              <SidebarLayout>
+                <InventoryPage />
+              </SidebarLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/reports" 
+        <Route
+          path="/reports"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <SidebarLayout><ReportsPage /></SidebarLayout>
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <SidebarLayout>
+                <ReportsPage />
+              </SidebarLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/users" 
+        <Route
+          path="/users"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <SidebarLayout><UsersPage /></SidebarLayout>
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <SidebarLayout>
+                <UsersPage />
+              </SidebarLayout>
             </ProtectedRoute>
-          } 
+          }
         />
 
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)} 
-      />
+      {/* Auth Modal */}
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </>
   );
 };
 
-import { DataProvider } from './context/DataContext';
-
-function App() {
+// =====================
+// Main App Component
+// =====================
+const App: React.FC = () => {
   return (
-    <Router>
+    <AuthProvider>
       <DataProvider>
-        <AuthProvider>
+        <Router>
           <AppRoutes />
-        </AuthProvider>
+        </Router>
       </DataProvider>
-    </Router>
+    </AuthProvider>
   );
-}
+};
 
 export default App;
