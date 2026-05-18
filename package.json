@@ -13,6 +13,8 @@
     "vite": "latest",
     "typescript": "latest",
     "tailwindcss": "latest",
+    "tailwind-merge": "latest",
+    "clsx": "latest",
     "react": "latest",
     "react-dom": "latest",
     "react-router-dom": "latest",
