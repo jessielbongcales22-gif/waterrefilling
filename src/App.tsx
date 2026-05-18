@@ -15,135 +15,54 @@ import CustomerDashboard from "./pages/CustomerDashboard";
 import AuthModal from "./components/AuthModal";
 import LoginPage from "./pages/LoginPage";
 
-// =====================
-// Protected Route Component
-// =====================
+// Protected Route
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({
   children,
   allowedRoles,
 }) => {
   const { user, isAuthenticated } = useAuth();
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (allowedRoles && user && !allowedRoles.includes(user.role || "")) {
-    // Redirect to correct dashboard if role mismatch
     return <Navigate to={user.role === "customer" ? "/customer-dashboard" : "/dashboard"} replace />;
   }
-
   return <>{children}</>;
 };
 
-// =====================
-// App Routes Component
-// =====================
 const AppRoutes: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   return (
     <>
       <Routes>
-        {/* Landing / Public */}
         <Route path="/" element={<LandingPage onOpenAuth={() => setIsAuthModalOpen(true)} />} />
         <Route path="/login" element={<LoginPage />} />
 
-        {/* Customer Route */}
-        <Route
-          path="/customer-dashboard"
-          element={
-            <ProtectedRoute allowedRoles={["customer"]}>
-              <CustomerDashboard />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/customer-dashboard" element={<ProtectedRoute allowedRoles={["customer"]}><CustomerDashboard /></ProtectedRoute>} />
 
-        {/* Admin / Staff Routes */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "staff"]}>
-              <SidebarLayout>
-                <AdminDashboard />
-              </SidebarLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/walk-in"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "staff"]}>
-              <SidebarLayout>
-                <WalkInSale />
-              </SidebarLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/orders"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "staff"]}>
-              <SidebarLayout>
-                <OrdersPage />
-              </SidebarLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/inventory"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "staff"]}>
-              <SidebarLayout>
-                <InventoryPage />
-              </SidebarLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/reports"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <SidebarLayout>
-                <ReportsPage />
-              </SidebarLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/users"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <SidebarLayout>
-                <UsersPage />
-              </SidebarLayout>
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/dashboard" element={<ProtectedRoute allowedRoles={["admin","staff"]}><SidebarLayout><AdminDashboard /></SidebarLayout></ProtectedRoute>} />
+        <Route path="/walk-in" element={<ProtectedRoute allowedRoles={["admin","staff"]}><SidebarLayout><WalkInSale /></SidebarLayout></ProtectedRoute>} />
+        <Route path="/orders" element={<ProtectedRoute allowedRoles={["admin","staff"]}><SidebarLayout><OrdersPage /></SidebarLayout></ProtectedRoute>} />
+        <Route path="/inventory" element={<ProtectedRoute allowedRoles={["admin","staff"]}><SidebarLayout><InventoryPage /></SidebarLayout></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute allowedRoles={["admin"]}><SidebarLayout><ReportsPage /></SidebarLayout></ProtectedRoute>} />
+        <Route path="/users" element={<ProtectedRoute allowedRoles={["admin"]}><SidebarLayout><UsersPage /></SidebarLayout></ProtectedRoute>} />
 
-        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      {/* Auth Modal */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </>
   );
 };
 
-// =====================
-// Main App Component
-// =====================
-const App: React.FC = () => {
-  return (
-    <AuthProvider>
-      <DataProvider>
-        <Router>
-          <AppRoutes />
-        </Router>
-      </DataProvider>
-    </AuthProvider>
-  );
-};
+const App: React.FC = () => (
+  <AuthProvider>
+    <DataProvider>
+      <Router>
+        <AppRoutes />
+      </Router>
+    </DataProvider>
+  </AuthProvider>
+);
 
 export default App;
