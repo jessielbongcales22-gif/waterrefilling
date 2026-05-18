@@ -3,17 +3,19 @@ import mysql from "mysql2/promise";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
+import cors from "cors";
 
 dotenv.config();
 
 const app = express();
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+app.use(cors());
 app.use(express.json());
 
 // Database pool configuration
-// For Aiven, ensure you use the full Service URI or these specific variables
 const pool = mysql.createPool({
   host: process.env.MYSQL_HOST,
   user: process.env.MYSQL_USER,
@@ -21,11 +23,16 @@ const pool = mysql.createPool({
   database: process.env.MYSQL_DATABASE,
   port: Number(process.env.MYSQL_PORT) || 3306,
   ssl: {
-    rejectUnauthorized: false // Required for secure Aiven communication
+    rejectUnauthorized: false
   },
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
+});
+
+// Test route
+app.get("/api/health", (req, res) => {
+  res.json({ success: true, message: "Server is running" });
 });
 
 // --- ROOMS API ---
@@ -40,9 +47,13 @@ app.get("/api/rooms", async (req, res) => {
 
 app.put("/api/rooms/:id", async (req, res) => {
   const { status, currentCapacity } = req.body;
+
   try {
-    await pool.query("UPDATE rooms SET status = ?, currentCapacity = ? WHERE id = ?", 
-      [status, currentCapacity, req.params.id]);
+    await pool.query(
+      "UPDATE rooms SET status = ?, currentCapacity = ? WHERE id = ?",
+      [status, currentCapacity, req.params.id]
+    );
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -61,11 +72,13 @@ app.get("/api/reports", async (req, res) => {
 
 app.post("/api/reports", async (req, res) => {
   const { id, tenantId, title, details, category, status, date } = req.body;
+
   try {
     await pool.query(
       "INSERT INTO reports (id, tenantId, title, details, category, status, date) VALUES (?, ?, ?, ?, ?, ?, ?)",
       [id, tenantId, title, details, category, status, date]
     );
+
     res.status(201).json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -75,12 +88,20 @@ app.post("/api/reports", async (req, res) => {
 // --- ACCOUNTS / AUTH API ---
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
+
   try {
-    const [rows] = await pool.query("SELECT * FROM accounts WHERE username = ? AND password = ?", [username, password]);
+    const [rows] = await pool.query(
+      "SELECT * FROM accounts WHERE username = ? AND password = ?",
+      [username, password]
+    );
+
     if (rows.length > 0) {
       res.json({ success: true, user: rows[0] });
     } else {
-      res.status(401).json({ success: false, message: "Invalid credentials" });
+      res.status(401).json({
+        success: false,
+        message: "Invalid credentials"
+      });
     }
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -97,16 +118,24 @@ app.get("/api/schedules", async (req, res) => {
   }
 });
 
-// Existing Tenant and Payment routes...
-// [Include your previous /api/tenants and /api/payments routes here]
-
-// Serve static assets from the React build
+// Serve React build files
 app.use(express.static(path.join(__dirname, "dist")));
 
-// React fallback
-app.get("*", (req, res) => {
+// API fallback
+app.use("/api", (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "API route not found"
+  });
+});
+
+// React fallback for frontend routes
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
