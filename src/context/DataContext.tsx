@@ -53,6 +53,13 @@ interface DataContextType {
   updateUser: (id: string, user: Partial<User>) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
   addOrder: (order: Omit<Order, "id" | "createdAt" | "date">) => Promise<string>;
+  addWalkInOrder: (order: {
+    customerName: string;
+    barangay: string;
+    address: string;
+    paymentMethod: "CASH" | "GCASH";
+    items: { productId: number; quantity: number; price: number }[];
+  }) => Promise<string | null>;
   updateOrder: (id: string, order: Partial<Order>) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
   approveOrder: (id: string) => Promise<void>;
@@ -141,6 +148,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return result.id;
   };
 
+  // ====== WALK-IN ORDER HELPER ======
+  const addWalkInOrder = async (order: {
+    customerName: string;
+    barangay: string;
+    address: string;
+    paymentMethod: "CASH" | "GCASH";
+    items: { productId: number; quantity: number; price: number }[];
+  }) => {
+    try {
+      const result = await apiRequest<{ success: boolean; id: string }>("/api/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: order.customerName,
+          barangay: order.barangay,
+          address: order.address,
+          payment: order.paymentMethod,
+          type: "Walk-in",
+          items: order.items,
+        }),
+      });
+      await refreshData();
+      return result.id;
+    } catch (err) {
+      console.error("Failed to add walk-in order:", err);
+      return null;
+    }
+  };
+
   const updateOrder = async (id: string, updates: Partial<Order>) => {
     await apiRequest(`/api/orders/${id}`, { method: "PUT", body: JSON.stringify(updates) });
     await refreshData();
@@ -210,6 +245,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateUser,
         deleteUser,
         addOrder,
+        addWalkInOrder,
         updateOrder,
         deleteOrder,
         approveOrder,
