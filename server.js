@@ -15,7 +15,7 @@ app.use(cors());
 app.use(express.json());
 
 // ================================
-// AIVEN MYSQL CONNECTION
+// Aiven MySQL connection
 // ================================
 const pool = mysql.createPool({
   host: process.env.MYSQL_HOST,
@@ -30,19 +30,19 @@ const pool = mysql.createPool({
 });
 
 // ================================
-// HEALTH CHECK
+// Health check
 // ================================
 app.get("/api/health", async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT NOW() AS current_time");
     res.json({ success: true, message: "Server running and DB connected", time: rows[0].current_time });
   } catch (err) {
-    res.status(500).json({ success: false, message: "DB connection failed", error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
 // ================================
-// USERS API
+// Example: Users API
 // ================================
 app.get("/api/users", async (req, res) => {
   try {
@@ -57,22 +57,7 @@ app.get("/api/users", async (req, res) => {
 });
 
 // ================================
-// PRODUCTS API
-// ================================
-app.get("/api/products", async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
-      SELECT id, name, price, stock_quantity AS stock, category, description
-      FROM products ORDER BY id ASC
-    `);
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// ================================
-// ORDERS API
+// Orders API
 // ================================
 app.get("/api/orders", async (req, res) => {
   try {
@@ -107,16 +92,15 @@ app.get("/api/orders", async (req, res) => {
   }
 });
 
+// ================================
+// Update order status (Complete / Delivered / etc.)
+// ================================
 app.put("/api/orders/:id", async (req, res) => {
   const { status, paymentStatus } = req.body;
   const { id } = req.params;
 
   try {
-    await pool.query("UPDATE orders SET order_status=?, payment_status=? WHERE id=?", [
-      status,
-      paymentStatus,
-      id,
-    ]);
+    await pool.query("UPDATE orders SET order_status=?, payment_status=? WHERE id=?", [status, paymentStatus, id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -124,7 +108,7 @@ app.put("/api/orders/:id", async (req, res) => {
 });
 
 // ================================
-// LOGIN API
+// Login API
 // ================================
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
@@ -138,14 +122,19 @@ app.post("/api/login", async (req, res) => {
 });
 
 // ================================
-// SERVE REACT FRONTEND
+// API fallback
 // ================================
-app.use(express.static(path.join(__dirname, "dist")));
 app.use("/api", (req, res) => res.status(404).json({ success: false, message: "API route not found" }));
-app.use((req, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
 
 // ================================
-// START SERVER
+// React SPA fallback (fixed catch-all)
+// ================================
+app.get(/^\/(?!api).*/, (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
+
+// ================================
+// Start server
 // ================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
